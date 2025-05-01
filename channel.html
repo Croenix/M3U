@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EPG Channel Browser</title>
+  <style>
+    :root {
+      --primary: #2c3e50;
+      --secondary: #ffffff;
+      --accent: #3498db;
+      --text: #333;
+      --bg: #f5f5f5;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--primary);
+      color: var(--secondary);
+      text-align: center;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      animation: fadeSlideDown .5s ease;
+    }
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      padding: 1rem;
+    }
+    #search, #filter {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    #channels {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .channel-card {
+      background: var(--secondary);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: .5rem;
+      animation: popIn 0.4s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .channel-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .channel-card img {
+      width: 100%;
+      max-height: 80px;
+      object-fit: contain;
+      margin-bottom: .5rem;
+    }
+    .channel-card .name {
+      font-size: 1rem;
+      font-weight: 500;
+      text-align: center;
+      padding: 0 .5rem;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #popup {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity .3s;
+      padding: 1rem;
+      z-index: 1000;
+    }
+    #popup.active {
+      visibility: visible;
+      opacity: 1;
+    }
+    .popup-content {
+      background: var(--secondary);
+      border-radius: 16px;
+      max-width: 360px;
+      width: 100%;
+      padding: 2rem 1.5rem;
+      position: relative;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      animation: fadeIn .3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { transform: scale(.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .popup-content img {
+      max-width: 100px;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    .popup-content h2 {
+      margin: 0 0 1rem;
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+    .popup-content .field {
+      margin: .75rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f0f0f0;
+      padding: .5rem .75rem;
+      border-radius: 8px;
+      transition: background 0.2s ease;
+    }
+    .popup-content .field:hover {
+      background: #e0e0e0;
+    }
+    .popup-content .field strong {
+      font-size: .9rem;
+      color: #555;
+      margin-right: .5rem;
+    }
+    .popup-content .field span.value {
+      flex: 1;
+      text-align: left;
+      margin-right: .5rem;
+      word-break: break-word;
+      color: #222;
+    }
+    .copy-btn {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: .35rem .6rem;
+      border-radius: 6px;
+      font-size: .75rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .copy-btn:hover {
+      background: #2c80c4;
+    }
+    .popup-content #close-btn {
+      position: absolute;
+      top: .5rem;
+      right: .75rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--primary);
+    }
+    @media(max-width:480px){
+      .channel-card img { max-height: 60px }
+      .popup-content { padding: 1.25rem }
+      .popup-content h2 { font-size: 1.2rem }
+    }
+  </style>
+</head>
+<body>
+  <header><h1>TV Channels</h1></header>
+  <div id="controls">
+    <input type="text" id="search" placeholder="Search channels...">
+    <select id="filter">
+      <option value="all">All</option>
+      <option value="jiotv">JioTV</option>
+      <option value="tataplay">TataPlay</option>
+      <option value="zee5">Zee5</option>
+      <option value="sunnxt">SunNXT</option>
+      <option value="sonyliv">SonyLIV</option>
+    </select>
+  </div>
+  <div id="channels">Loading channels…</div>
+  <div id="popup">
+    <div class="popup-content">
+      <span id="close-btn">&times;</span>
+      <img id="popup-logo" src="" alt="Logo">
+      <h2 id="popup-name"></h2>
+      <div class="field"><strong>Category:</strong><span class="value" id="popup-category"></span><button class="copy-btn" data-target="popup-category">Copy</button></div>
+      <div class="field"><strong>Name:</strong><span class="value" id="popup-name-field"></span><button class="copy-btn" data-target="popup-name-field">Copy</button></div>
+      <div class="field"><strong>TVG ID:</strong><span class="value" id="popup-tvgid"></span><button class="copy-btn" data-target="popup-tvgid">Copy</button></div>
+    </div>
+  </div>
+  <script>
+    function copyText(id) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => alert('Copied: ' + text)).catch(() => alert('Copy failed'));
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.copy-btn').forEach(btn =>
+        btn.addEventListener('click', () => copyText(btn.dataset.target)));
+    });
+
+    let allChannels = [];
+    fetch('epg.xml')
+      .then(res => {
+        if (!res.ok) throw new Error('Could not load epg.xml');
+        return res.text();
+      })
+      .then(str => new DOMParser().parseFromString(str, 'application/xml'))
+      .then(xml => {
+        allChannels = Array.from(xml.getElementsByTagName('channel')).map(ch => {
+          const id = ch.getAttribute('id') || '';
+          const cleanTvg = ch.getAttribute('tvg-id') || id || 'N/A';
+          const category = ch.getAttribute('tvg-category') || ch.getAttribute('category') || 'General';
+          const name = ch.querySelector('display-name')?.textContent.trim() || cleanTvg;
+          const iconSrc = ch.querySelector('icon')?.getAttribute('src') || '';
+          return { cleanTvg, category, name, iconSrc };
+        });
+        displayChannels(allChannels);
+      })
+      .catch(err => {
+        document.getElementById('channels').textContent = 'Error loading channels: ' + err.message;
+      });
+
+    function displayChannels(channels) {
+      const container = document.getElementById('channels');
+      container.innerHTML = '';
+      channels.forEach(ch => {
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+        card.innerHTML = `<img src="${ch.iconSrc}" alt="${ch.name} logo" onerror="this.style.opacity=0.3"><div class="name">${ch.name}</div>`;
+        container.appendChild(card);
+        card.addEventListener('click', () => {
+          document.getElementById('popup-logo').src = ch.iconSrc;
+          document.getElementById('popup-name').textContent = ch.name;
+          document.getElementById('popup-name-field').textContent = ch.name;
+          document.getElementById('popup-category').textContent = ch.category;
+          document.getElementById('popup-tvgid').textContent = ch.cleanTvg;
+          document.getElementById('popup').classList.add('active');
+        });
+      });
+    }
+
+    document.getElementById('search').addEventListener('input', function () { applyFilters(); });
+    document.getElementById('filter').addEventListener('change', function () { applyFilters(); });
+
+    function applyFilters() {
+      const query = document.getElementById('search').value.toLowerCase();
+      const type = document.getElementById('filter').value;
+      const filtered = allChannels.filter(ch => {
+        const matchSearch = ch.name.toLowerCase().includes(query);
+        let matchType = true;
+        if (type === 'jiotv') matchType = /^\d+$/.test(ch.cleanTvg);
+        else if (type === 'tataplay') matchType = /^ts\d+$/.test(ch.cleanTvg);
+        else if (type === 'zee5') matchType = /^0-9-/.test(ch.cleanTvg);
+        else if (type === 'sunnxt') matchType = /^sun\d+$/.test(ch.cleanTvg);
+        else if (type === 'sonyliv') matchType = /^sony\d+$/.test(ch.cleanTvg);
+        return matchSearch && matchType;
+      });
+      displayChannels(filtered);
+    }
+
+    document.getElementById('close-btn').addEventListener('click', () => document.getElementById('popup').classList.remove('active'));
+    document.getElementById('popup').addEventListener('click', e => { if (e.target === e.currentTarget) document.getElementById('popup').classList.remove('active'); });
+  </script>
+</body>
+</html>
